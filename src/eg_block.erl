@@ -27,7 +27,7 @@
 
 -module (eg_block).
 
--export([block/11, block/10,  colored_inner_block/11, inner_block/10]).
+-export([block/11, block/10, colored_inner_block/11, inner_block/10, block_woff/12, block_woff/11, inner_block/11 ]).
     
 -include("../include/eg.hrl").
 
@@ -79,10 +79,13 @@
 %% process an XML block of content into a block of PDF text with a color background
 
 block(PDF, Color, Sample, X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap) ->
+  block_woff(PDF, Color, Sample, X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap, 20).
+
+block_woff(PDF, Color, Sample, X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap, Offset) ->
     Width = Measure + 20,
     Ht = (NLines * Leading) + 20,
     box(PDF, Color, X, Y-Ht+10, Width, Ht),
-    block(PDF, Sample, X+10, Y , Measure, PtSize, Leading, NLines, Justification, TagMap).
+    block_woff(PDF, Sample, X+10, Y , Measure, PtSize, Leading, NLines, Justification, TagMap, Offset).
 
 %% @doc process a parsed XML block of content into a block of PDf text with a color background 
    
@@ -97,26 +100,30 @@ colored_inner_block(PDF, Color, Sample, X, Y, Measure, PtSize, Leading, NLines, 
 block(PDF, Sample, X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap) ->
     inner_block(PDF, eg_xml_lite:parse_all_forms(Sample),X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap).
 
+block_woff(PDF, Sample, X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap, Offset) ->
+    inner_block(PDF, eg_xml_lite:parse_all_forms(Sample),X, Y, Measure, PtSize, Leading, NLines, Justification, TagMap, Offset).
+
 %% @doc process a parsed XML block of content into a block of PDf text with a blank background
 
-inner_block(PDF, [{raw, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap) ->
-   block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap),
-   ok;
-inner_block(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap) ->
-   block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap),
-   ok;
-inner_block(PDF, [{xml, Xml} | T], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap) ->
-  Height = block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap),
-   inner_block(PDF, T, X, Y - Height, Len, PtSize, Leading, NLines, Justification, TagMap).
+inner_block(PDF, Sample, X, Y, Len, PtSize, Leading, NLines, Justification, TagMap) ->
+   inner_block(PDF, Sample, X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, 20).
 
-    
-block2(PDF, [{xml, Xml}], X, Y, Len, _PtSize, Leading, NLines, Justification, TagMap) ->
+inner_block(PDF, [{raw, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset) ->
+   block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset),
+   ok;
+inner_block(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset) ->
+   block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset),
+   ok;
+inner_block(PDF, [{xml, Xml} | T], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset) ->
+  Height = block2(PDF, [{xml, Xml}], X, Y, Len, PtSize, Leading, NLines, Justification, TagMap, Offset),
+   inner_block(PDF, T, X, Y - Height, Len, PtSize, Leading, NLines, Justification, TagMap, Offset).
+
+block2(PDF, [{xml, Xml}], X, Y, Len, _PtSize, Leading, NLines, Justification, TagMap, Offset) ->
     ensure_fonts_are_loaded(PDF, TagMap),
     Norm = eg_xml2richText:normalise_xml(Xml, TagMap),
-    %% io:format("Norm=~p~n",[Norm]),
     {p, _, RichText} = Norm,
-    Widths = [Len-20|lists:duplicate(NLines-1, Len)],
-    Off = [20|lists:duplicate(NLines-1, 0)],
+    Widths = [Len-Offset|lists:duplicate(NLines-1, Len)],
+    Off = [Offset|lists:duplicate(NLines-1, 0)],
     case eg_line_break:break_richText(RichText, { Justification, Widths}) of
 	impossible ->
 	    io:format("Cannot break line are widths ok~n");
